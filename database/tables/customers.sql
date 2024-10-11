@@ -6,6 +6,7 @@ CREATE TABLE customers (
     lastName VARCHAR(250) NOT NULL,
     contactNumber VARCHAR(15) NOT NULL UNIQUE,
     registrationDate DATETIME DEFAULT CURRENT_TIMESTAMP,
+    loyaltyPoints INT DEFAULT 0,
     isNumberVerified BOOLEAN DEFAULT 0,
     FOREIGN KEY (userId) REFERENCES users(id)
 );
