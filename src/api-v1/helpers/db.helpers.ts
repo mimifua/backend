@@ -1,14 +1,23 @@
-import mysql from 'mysql'
+import mysql from 'mysql2/promise'
 import { sqlConfig } from '../../config'
 
-// create connection
-export const connection = mysql.createConnection(sqlConfig)
+// create pool
+export const pool = mysql.createPool(sqlConfig)
 
-// connect to mysql
-// connection.connect((error)=>{
-//     if (error){
-//         console.log('Error connecting to MySql: ' + error.stack)
-//         return
-//     }
-//     console.log('connected to MySql successfully as ID: ' + db.threadId)
-// })
+// A simple SELECT query
+// async function seeMeNow(){
+//     try {
+//         const [rows, fields] = await pool.query(
+//           'SELECT id,username,email FROM users;'
+//         );
+      
+//         console.log(rows); // results contains rows returned by server
+//         console.log(fields); // fields contains extra meta data about results, if available
+//       } catch (err) {
+//         console.log(err);
+//       }
+// }
+
+// seeMeNow()
+
+
