@@ -4,7 +4,7 @@ import bcrypt from 'bcrypt'
 
 import { pool } from "../helpers/db.helpers";
 import { UserRoles, Users } from "../models/users.models"; 
-import { emailLoginSchema, RegisterUserSchema, userNameLoginSchema } from "../validators/auth.validators";
+import { changePasswordSchema, emailLoginSchema, forgotPasswordEmailSchema, forgotPasswordUserNameSchema, RegisterUserSchema, userNameLoginSchema } from "../validators/auth.validators";
 
 
 // export const registerUser = async(request:Request, response:Response) => {
@@ -61,7 +61,7 @@ export async function loginUser(request:Request<{id:string}>, response:Response)
   
     try{
         // if user input email
-        if (emailRegex.test(userNameOrEmail)){
+        if (emailRegex.test(userNameOrEmail.trim())){
             const {error} = emailLoginSchema.validate(request.body)
             if(error){
                 return response.status(400).json({error:error.details[0].message})
@@ -83,7 +83,7 @@ export async function loginUser(request:Request<{id:string}>, response:Response)
                 }
             }
         // else if user input is NOT email
-        } else if (!emailRegex.test(userNameOrEmail)){
+        } else if (!emailRegex.test(userNameOrEmail.trim())){
             const {error} = userNameLoginSchema.validate(request.body)
             if(error){
                 return response.status(400).json({error:error.details[0].message})
@@ -106,7 +106,154 @@ export async function loginUser(request:Request<{id:string}>, response:Response)
             }
         }
     } catch(error){
-        // console.error('Error occured at: ',error)
+        console.error('Error occured at: ',error)
         return response.status(500).json({error:error})
     }
 }
+
+
+export async function changePassword(request:Request<{id:string}>, response:Response){
+    /*
+     * users change their password while within the application
+     * their id will be taken from the cookies on the website
+     * then matched to the appropriate user for update of the password
+    */
+
+    const id = request.params.id
+    const {newPassword,confirmNewPassword} = request.body
+
+    try{
+        const {error} = changePasswordSchema.validate(request.body)
+        if(error){
+            return response.status(400).json({error:error.details[0].message})
+        } else {
+            const [rows,fields] = await pool.query(
+                `SELECT * FROM users WHERE id='${id}'
+                AND isDeleted=0;`
+            )
+
+            const [user]=rows as Array<Users>
+            // if user exists
+            if(user){
+                const hashedPassword = await bcrypt.hash(confirmNewPassword,9)
+                await pool.query(
+                    `UPDATE users SET password='${hashedPassword}'
+                    WHERE id='${id}'
+                    AND isDeleted=0;`
+                )
+                return response.status(200).json({success:`Congratulation ${user.username}, You have successfully update your password. Log back in again to continue browsing.`})
+            } else {
+                return response.status(401).json({error:`Oh no! You do not have an account. Try again?`})
+            }
+        }
+    } catch(error) {
+        // console.error('An error occured: ',error)
+        return response.status(500).json({error:error})
+    }
+}
+
+
+export async function forgotPassword(request:Request, response:Response){
+    /* 
+     * users who forgot their password(not logged in to app)
+     * on confirming their username/email forgotPassword table is updated from 0 to 1 
+     * background cron jobs on seeing this send an email with link to user on registered email account
+     * then change back column to 0.
+     * user changes password at own convenience{look into how you can set timer} 
+    */
+
+    const {userNameOrEmail} = request.body 
+    const emailRegex = /^[\w\.-]+@[a-zA-Z\d\.-]+\.[a-zA-Z]{2,}$/
+
+    try{
+        // if user entered email
+        if (emailRegex.test(userNameOrEmail.trim())){
+            const {error} = forgotPasswordEmailSchema.validate(request.body)
+            if (error){
+                return response.status(400).json({error:error.details[0].message})
+            } else {
+                const [rows,fields] = await pool.query(
+                    `SELECT * FROM users WHERE email='${userNameOrEmail}';`
+                )
+                // destructure the data array
+                const [user] = rows as Array<Users>
+
+                if (user){
+                    // modify forgot password column in user db
+                    await pool.execute(
+                        `UPDATE users SET forgotPassword=1
+                        WHERE email='${userNameOrEmail}'
+                        AND isDeleted=0;`
+                    )
+                    // send response
+                    return response.status(200).json({success:`An email will be sent to ${user.email} shortly, Kindly use the link to reset your password.`})
+                } else {
+                    return response.status(400).json({error:`Oh no! It Looks like there is no existing user with that email. Try again?`})
+                }
+            }
+        }
+        // if user inputs username
+        else if(!emailRegex.test(userNameOrEmail.trim())){
+            const {error} = forgotPasswordUserNameSchema.validate(request.body)
+            if (error){
+                return response.status(400).json({error:error.details[0].message})
+            } else {
+                const [rows,fields] = await pool.query(
+                    `SELECT * FROM users WHERE username='${userNameOrEmail}';`
+                )
+                // destructure the data array
+                const [user] = rows as Array<Users>
+
+                if(user){
+                    // modify forgot password column in user db
+                    await pool.execute(
+                        `UPDATE users SET forgotPassword=1
+                        WHERE username='${userNameOrEmail}'
+                        AND isDeleted=0;`
+                    )
+    
+                    // send response
+                    return response.status(200).json({success:`An email will be sent to ${user.email} shortly, Kindly use the link to reset your password.`})
+                } else {
+                    return response.status(400).json({error:`Oh no! It Looks like there is no existing user with that email. Try again?`})
+                }
+            }
+        }
+    } catch(error){
+        // console.error('Error occured at: ',error)
+        return response.status(500).json({errro:error})
+    }
+}
+
+
+export async function deleteUser(request:Request<{id:string}>,response:Response){
+    /**
+     * 
+     * 
+     * 
+    */
+
+    const id = request.params.id
+    try{
+        const [rows,fields] = await pool.query(
+            `SELECT * FROM users WHERE id='${id}' AND isDeleted=0;`
+        )
+        const [user] = rows as Array<Users>
+
+        if (user){
+            await pool.query(
+                `UPDATE users SET isDeleted=1
+                WHERE id='${id}';`
+            )
+            return response.status(200).json({success:`You have successfully deleted your account.`})
+        } else {
+            return response.status(400).json({error:`Oh no! It seems like you do not have an account. Try again?`})
+        }
+    } catch(error) {
+        console.error('Error occurred at: ',error)
+        return response.status(500).json({error:error})
+    }
+}
+
+
+

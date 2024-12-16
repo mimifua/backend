@@ -6,5 +6,6 @@ CREATE TABLE users (
     password VARCHAR(250) NOT NULL,
     role ENUM('customer','employee','admin') NOT NULL,
     isDeleted BOOLEAN DEFAULT 0,
-    isWelcomeEmailSent BOOLEAN DEFAULT 0
+    isWelcomeEmailSent BOOLEAN DEFAULT 0,
+    forgotPassword BOOLEAN DEFAULT 0
 );

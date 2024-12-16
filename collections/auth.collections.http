@@ -9,12 +9,35 @@ Content-Type: application/json
 }
 
 ##################
-
 # LOGIN EXISTING USER
 POST http://localhost:4000/auth/login
 Content-Type: application/json
 
 {
-    "userNameOrEmail":"auntie@gmail.com",
+    "userNameOrEmail":"mkuru@gmail.com",
     "password":"Shanara17!"
 }
+
+####################
+# FORGOT PASSWORD
+POST http://localhost:4000/auth/forgot-password
+Content-Type: application/json
+
+{
+    "userNameOrEmail":"mkurugenzi@gmail.com"
+}
+
+####################
+# CHANGE PASSWORD
+PATCH http://localhost:4000/auth/change-password/f3ce9369-eb31-4196-ba77-0a1dd341fb5b
+Content-Type: application/json
+
+{
+    "newPassword":"Mnara18!",
+    "confirmNewPassword":"Mnara18!"
+}
+
+
+####################
+# DELETE USER ACCOUNT
+DELETE http://localhost:4000/auth/delete/f3ce9369-eb31-4196-ba77-0a1dd341fb5b
